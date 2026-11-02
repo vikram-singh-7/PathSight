@@ -39,28 +39,28 @@ PathSight unites micro-obstacle computer vision with macro-level campus pathfind
 - **Normalized Bounding Boxes**: Visual overlays scaled to the camera aspect ratio with spatial sector dividers (Left, Center Ahead, Right).
 - **Proximity Footprint Classification**: Categorizes detected objects as `approaching`, `nearby`, or `distant` based on bounding-box visual area and vertical coverage.
 - **Hazard Prioritization**: High-priority obstruction classes (people, chairs, tables, bicycles, backpacks) are elevated above background objects.
-- **Inference Throttling**: Frame transmission throttled to 2 FPS ($500\text{ms}$ interval) to prevent UI blocking and eliminate CPU thermal throttling.
+- **Inference Throttling**: Frame transmission throttled to 2 FPS (500ms interval) to prevent UI blocking and eliminate CPU thermal throttling.
 
 ### Voice & Acoustic Assistance
 - **Zero-Cloud Text-to-Speech**: Uses the browser's native `window.speechSynthesis` API without external paid API keys or network latency.
 - **Synthesized Audio Earcons**: Web Audio API generates three distinct acoustic cues:
-  - *Turn Ping* ($520\text{Hz} \rightarrow 659\text{Hz}$) for navigation waypoint transitions.
-  - *Warning Tone* ($440\text{Hz} \rightarrow 880\text{Hz}$) for urgent physical hazards.
-  - *Arrival Melodic Triad* ($440\text{Hz} \rightarrow 554\text{Hz} \rightarrow 659\text{Hz}$) upon reaching destination.
+  - *Turn Ping* (520Hz → 659Hz) for navigation waypoint transitions.
+  - *Warning Tone* (440Hz → 880Hz) for urgent physical hazards.
+  - *Arrival Melodic Triad* (440Hz → 554Hz → 659Hz) upon reaching destination.
 - **Scene Signature Debouncing**: Computes a deterministic hash of visible objects. Suppresses identical audio for 4.5 seconds unless an urgent hazard is detected.
-- **One-Touch Audio Controls**: Instant mute toggle (`M`), speech rate adjustment ($0.8\times - 1.5\times$), and a dedicated "Test Voice" diagnostic phrase.
+- **One-Touch Audio Controls**: Instant mute toggle (`M`), speech rate adjustment (0.8× – 1.5×), and a dedicated "Test Voice" diagnostic phrase.
 
 ### Campus Route Planning & Navigation
 - **Small Campus Graph**: 9 configurable sample landmarks and 14 connecting walkways stored in a modular JSON file.
-- **Dijkstra Shortest-Path Engine**: Pure Python algorithm with tactile paving preference weights ($1.0\times$ vs $1.15\times$ penalty for standard paths).
+- **Dijkstra Shortest-Path Engine**: Pure Python algorithm with tactile paving preference weights (1.0× vs 1.15× penalty for standard paths).
 - **Accessible Step-Free Filter**: Option to strictly avoid stairs and favor graded ramps (e.g., selects a 195m accessible ramp over a 160m flight of 8 stairs).
 - **Turn-by-Turn Spoken Itinerary**: Generates natural language instructions with directional orientation and landmarks.
-- **Manual Waypoint Progression**: Large tactile button ($\ge 56\text{px}$) allowing students to confirm waypoint arrival at their own pace.
+- **Manual Waypoint Progression**: Large tactile button (≥ 56px) allowing students to confirm waypoint arrival at their own pace.
 - **Dynamic Obstacle Detours**: Walkway blockage reporting (`POST /api/campus/obstacles`) immediately triggers Dijkstra rerouting.
 
 ### Accessibility & UX
 - **Dual Visual Themes**: Standard dark-navy theme and a WCAG AAA compliant High-Contrast theme (Yellow `#facc15` on Pure Black `#000000`).
-- **Typography Scaling**: Font size adjustable across Standard ($100\%$), Large ($120\%$), and Extra Large ($140\%$).
+- **Typography Scaling**: Font size adjustable across Standard (100%), Large (120%), and Extra Large (140%).
 - **Keyboard Shortcuts**: Complete operation without mouse interaction (`Space`, `M`, `Alt+1`, `Alt+2`, `Alt+3`).
 - **Screen Reader Support**: ARIA live regions (`role="status"`, `aria-live="polite"`), descriptive button labels, and semantic HTML5 landmark tags.
 
@@ -72,7 +72,7 @@ PathSight unites micro-obstacle computer vision with macro-level campus pathfind
 | :--- | :--- | :--- |
 | **Frontend UI** | React 19, TypeScript, Vite | Accessible UI components, state coordination, and rapid rendering |
 | **Styling & Theme** | Custom CSS design tokens, Flexbox / Grid | WCAG AAA contrast modes, responsive desktop/tablet/mobile layouts |
-| **Camera & Video** | Browser `MediaDevices` API, HTML5 Canvas | Camera capture, downscaling to $480\times 360$ JPEG |
+| **Camera & Video** | Browser `MediaDevices` API, HTML5 Canvas | Camera capture, downscaling to 480×360 JPEG |
 | **Voice & Audio** | Web Speech API, Web Audio API | Speech synthesis, synthesized acoustic earcon frequencies |
 | **Backend API** | Python 3.13, FastAPI, Uvicorn | REST endpoints for health checks, model status, vision, and routing |
 | **Computer Vision** | Ultralytics YOLOv8n (`yolov8n.pt`), PyTorch | Local CPU object detection across 80 COCO classes |
@@ -153,17 +153,17 @@ d:\Test\
 ## 5. Subsystem Details
 
 ### 1. Computer Vision & Object Detection
-1. **Frame Capture**: When Vision Assistance is started, `useCamera` captures the `<video>` element frame to an offscreen HTML5 canvas, downscaling it to $480\times 360$ pixels and encoding it as a JPEG data URL.
+1. **Frame Capture**: When Vision Assistance is started, `useCamera` captures the `<video>` element frame to an offscreen HTML5 canvas, downscaling it to 480×360 pixels and encoding it as a JPEG data URL.
 2. **Frame Transmission**: `detectFrame` transmits the base64 payload to `POST /api/detect` at a throttled rate of 2 FPS.
 3. **Inference**: In `vision_service.py`, the image is decoded and passed to Ultralytics YOLOv8n running with `imgsz=416` on CPU.
 4. **Spatial Mapping**:
-   - $X_{\text{center}} < 0.36 \rightarrow$ `left`
-   - $0.36 \le X_{\text{center}} \le 0.64 \rightarrow$ `center` (ahead)
-   - $X_{\text{center}} > 0.64 \rightarrow$ `right`
+   - Center X < 0.36 → `left`
+   - 0.36 ≤ Center X ≤ 0.64 → `center` (ahead)
+   - Center X > 0.64 → `right`
 5. **Visual Proximity**:
-   - $\text{Box Area} > 0.22$ or $\text{Box Height} > 0.55 \rightarrow$ `approaching`
-   - $\text{Box Area} > 0.08$ or $\text{Box Height} > 0.28 \rightarrow$ `nearby`
-   - Otherwise $\rightarrow$ `distant`
+   - Box Area > 0.22 or Box Height > 0.55 → `approaching`
+   - Box Area > 0.08 or Box Height > 0.28 → `nearby`
+   - Otherwise → `distant`
 
 ### 2. Voice Assistance & Speech Synthesis
 1. **Natural Language Formatting**: `speechFormatter.ts` prioritizes centered, approaching obstacles and outputs concise phrasing (e.g., *"Person detected ahead"* or *"Chair detected on the left"*).
@@ -172,10 +172,10 @@ d:\Test\
 4. **Earcons**: Web Audio API oscillators synthesize short acoustic cues without downloading audio files.
 
 ### 3. Campus Route Planning & Dijkstra Algorithm
-1. **Graph Representation**: Landmarks are nodes with $(X, Y)$ coordinate metadata; walkways are edges with physical distance, surface type, tactile paving, and stair attributes.
+1. **Graph Representation**: Landmarks are nodes with (X, Y) coordinate metadata; walkways are edges with physical distance, surface type, tactile paving, and stair attributes.
 2. **Cost Function**:
-   $$\text{Weight} = \text{distance\_meters} \times (\text{tactile\_preference\_multiplier})$$
-   *(Tactile paving $= 1.0\times$; standard non-tactile path $= 1.15\times$).*
+   $$\text{Weight} = \text{Distance} \times \text{Tactile Factor}$$
+   *(Tactile paving = 1.0×; standard non-tactile path = 1.15×).*
 3. **Accessibility Filtering**: When `accessible_only=True`, any edge with `has_stairs=True` is skipped. If no step-free path exists, it falls back to the standard path with a spoken caution.
 4. **Dynamic Rerouting**: If a pathway is reported blocked, Dijkstra automatically computes an alternate detour around the obstruction.
 5. **Distance Reporting**: The physical distance sum is computed independently of preference multipliers, ensuring true distance in meters is reported.
