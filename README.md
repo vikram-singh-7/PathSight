@@ -84,46 +84,46 @@ PathSight unites micro-obstacle computer vision with macro-level campus pathfind
 ## 4. Project Directory Structure
 
 ```
-PathSight\
+PathSight/
 ├── README.md                           # Main project documentation and setup guide
 ├── HACKATHON_DEMO_GUIDE.md             # 3-minute pitch script, slide outline, and judge Q&A
 │
-├── backend\                            # FastAPI Python Backend
+├── backend/                            # FastAPI Python Backend
 │   ├── requirements.txt                # Python package dependencies
 │   ├── .env.example                    # Sample environment variables
 │   ├── .env                            # Local backend environment configuration
 │   ├── yolov8n.pt                      # Pretrained YOLOv8 nano model weights (~6.2 MB)
-│   ├── app\
+│   ├── app/
 │   │   ├── __init__.py
 │   │   ├── config.py                   # Pydantic settings (host, port, CORS origins)
 │   │   ├── main.py                     # FastAPI application setup and REST endpoint routes
-│   │   ├── data\
+│   │   ├── data/
 │   │   │   └── campus_map.json         # Configurable campus graph (9 nodes, 14 edges)
-│   │   ├── models\
+│   │   ├── models/
 │   │   │   ├── __init__.py
 │   │   │   ├── schemas.py              # Pydantic request/response schemas
 │   │   │   └── yolov8n.pt              # Cached weights for vision service
-│   │   └── services\
+│   │   └── services/
 │   │       ├── __init__.py
 │   │       ├── graph_service.py        # Dijkstra algorithm, accessibility filtering, detours
 │   │       └── vision_service.py       # YOLOv8 CPU inference, spatial FOV, proximity
-│   └── tests\
+│   └── tests/
 │       ├── test_routing.py             # Unit tests for Dijkstra and accessibility rules
 │       └── test_api_integration.py     # End-to-end integration tests for all 14 API endpoints
 │
-└── frontend\                           # React + TypeScript + Vite Frontend
+└── frontend/                           # React + TypeScript + Vite Frontend
     ├── package.json                    # Node dependencies and scripts
     ├── tsconfig.json                   # TypeScript project configuration
     ├── vite.config.ts                  # Vite build configuration
     ├── index.html                      # HTML entrypoint
     ├── .env.example                    # Frontend environment variable template
     ├── .env                            # Local frontend environment configuration
-    ├── src\
+    ├── src/
     │   ├── main.tsx                    # React application root mount
     │   ├── App.tsx                     # Main state container coordinating vision, voice & route
     │   ├── App.css                     # Responsive layout and mobile tab styling
     │   ├── index.css                   # Accessibility focus rings, root typography, scrollbars
-    │   ├── components\
+    │   ├── components/
     │   │   ├── CameraView.tsx          # Video viewport, bounding-box overlay, tactile controls
     │   │   ├── RoutePlanner.tsx        # Waypoint selector, accessibility filter, progression
     │   │   ├── CampusMapCanvas.tsx     # High-contrast interactive SVG campus map
@@ -132,19 +132,19 @@ PathSight\
     │   │   ├── ObservationFeed.tsx     # Chronological log of spoken vision/route observations
     │   │   ├── SettingsPanel.tsx       # Text scaling, speech rate, and high-contrast toggle
     │   │   └── SafetyBanner.tsx        # Expandable responsible AI disclaimer banner
-    │   ├── hooks\
+    │   ├── hooks/
     │   │   ├── useCamera.ts            # Camera lifecycle, stream cleanup, frame capture
     │   │   ├── useSpeech.ts            # Speech synthesis, queue cancellation, earcon audio
     │   │   └── useBackendHealth.ts     # Heartbeat polling for backend and model readiness
-    │   ├── services\
+    │   ├── services/
     │   │   └── api.ts                  # Fetch API client with AbortController timeouts
-    │   ├── types\
+    │   ├── types/
     │   │   └── index.ts                # TypeScript interfaces (Node, Edge, Route, Detection)
-    │   └── utils\
+    │   └── utils/
     │       ├── constants.ts            # Default API URLs and thresholds
     │       ├── speechFormatter.ts      # Translates YOLO boxes into concise directional phrases
     │       └── theme.ts                # Color tokens for standard and high-contrast themes
-    └── tests\
+    └── tests/
         └── speech.test.ts              # Unit tests for directional phrasing and deduplication
 ```
 
@@ -182,90 +182,91 @@ PathSight\
 
 ---
 
-## 6. Fresh Machine Installation & Startup (Windows)
+## 6. Getting Started
 
 ### Prerequisites
 - **Node.js**: v18.0.0 or v22.0.0+ ([nodejs.org](https://nodejs.org/))
 - **Python**: v3.10, v3.11, v3.12, or v3.13 ([python.org](https://www.python.org/))
-- **Windows PowerShell**
+- **Git**
 
 ---
 
-### Step 1: Backend Setup
-Open a new PowerShell terminal:
+### Backend Service Setup
 
-```powershell
+Open a terminal in the project root:
+
+```bash
 # Navigate to the backend directory
-Set-Location PathSight\backend   # or: cd backend
+cd backend
 
 # Create a virtual environment
 python -m venv venv
 
 # Activate virtual environment
-.\venv\Scripts\Activate.ps1
+# Windows:
+.\venv\Scripts\activate
+# macOS / Linux:
+# source venv/bin/activate
 
-# Upgrade pip and install dependencies
+# Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Verify model weights:
-# Pretrained yolov8n.pt is pre-cached in backend\app\models\yolov8n.pt
-```
-
-#### Launch the Backend Server:
-```powershell
-# Run Uvicorn server from the backend directory
+# Launch FastAPI development server
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-*Verify: Open `http://127.0.0.1:8000/health` in your browser. It should return `{"status":"ok"}`.*
+
+*Verification*: Open `http://127.0.0.1:8000/health` in your browser. The endpoint returns `{"status":"ok"}`. Interactive Swagger documentation is available at `http://127.0.0.1:8000/docs`.
 
 ---
 
-### Step 2: Frontend Setup
-Open a second PowerShell terminal:
+### Frontend Client Setup
 
-```powershell
+Open a second terminal in the project root:
+
+```bash
 # Navigate to the frontend directory
-Set-Location PathSight\frontend   # or: cd frontend
+cd frontend
 
-# Install npm packages
+# Install dependencies
 npm install
 
 # Launch Vite development server
 npm run dev
 ```
-*Verify: Open `http://localhost:5173/` in Google Chrome or Microsoft Edge.*
+
+*Verification*: Open `http://localhost:5173/` in Google Chrome or Microsoft Edge.
 
 ---
 
-## 7. Running Automated Verification Tests
+## 7. Automated Verification Tests
 
 All test suites run locally without internet access:
 
-### 1. Frontend Speech & Formatting Unit Tests
-```powershell
-Set-Location PathSight\frontend   # or: cd frontend
+### Frontend Speech & Formatting Unit Tests
+```bash
+cd frontend
 npm test
 ```
 *Executes `frontend/tests/speech.test.ts` via Node.js with 7 assertions verifying spatial phrases, multi-object counts, urgent alerts, and deduplication signatures.*
 
-### 2. Backend Dijkstra Routing Unit Tests
-```powershell
-Set-Location PathSight\backend    # or: cd backend
-.\venv\Scripts\python.exe tests/test_routing.py
+### Backend Dijkstra Routing Unit Tests
+```bash
+cd backend
+python tests/test_routing.py
 ```
 *Verifies 6 test cases: valid accessible routes, step-free ramp selection over stairs, identical start/goal nodes, invalid node handling, dynamic detour calculation, and reverse path guidance.*
 
-### 3. Backend Full API Integration Tests
-```powershell
-Set-Location PathSight\backend    # or: cd backend
-.\venv\Scripts\python.exe tests/test_api_integration.py
+### Backend Full API Integration Tests
+```bash
+cd backend
+python tests/test_api_integration.py
 ```
 *Tests all 14 FastAPI REST endpoints end-to-end, including image detection payloads, missing image error handling (HTTP 400), node retrieval, edge retrieval, routing, and obstacle blocking (HTTP 404 for invalid edge).*
 
-### 4. Code Quality & Build Checks
-```powershell
-Set-Location PathSight\frontend   # or: cd frontend
+### Code Quality & Production Build
+```bash
+cd frontend
 npm run lint    # Runs oxlint across all TypeScript files
 npm run build   # Type checks with tsc -b and bundles with Vite
 ```
@@ -301,7 +302,7 @@ npm run build   # Type checks with tsc -b and bundles with Vite
 | :--- | :--- | :--- |
 | **Camera Permission Denied** | Browser blocked camera access | Click the camera/lock icon in the browser address bar, set Camera to "Allow", and click "Retry Camera". |
 | **Camera Hardware Error** | Another application (Zoom, Teams) is using the webcam | Close the conflicting app, refresh the page, and press Spacebar to reactivate. |
-| **Vision Backend Disconnected** | FastAPI server is stopped or port 8000 is occupied | Verify Terminal 1 is running `uvicorn app.main:app`. Check `http://127.0.0.1:8000/health`. Click "Retry Connection" in the UI banner. |
+| **Vision Backend Disconnected** | FastAPI server is stopped or port 8000 is occupied | Verify the backend terminal is running `uvicorn app.main:app`. Check `http://127.0.0.1:8000/health`. Click "Retry Connection" in the UI banner. |
 | **Speech Audio is Silent** | System volume muted or browser autoplay policy blocked audio | Click anywhere on the webpage or click "Test Voice" in the header to activate browser audio. Ensure speech status in header does not say `Voice: Muted`. |
 | **Vite Port Conflict** | Port 5173 is already in use by another instance | Vite will automatically suggest port 5174. Open the URL shown in your terminal. |
 | **Model Weight Not Found** | Model file missing from models folder | Confirm `yolov8n.pt` is present in `backend/app/models/yolov8n.pt`. The backend automatically checks both `app/models/` and root `backend/`. |
