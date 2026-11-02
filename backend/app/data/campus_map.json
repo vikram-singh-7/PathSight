@@ -1,0 +1,211 @@
+{
+  "_notice": "SAMPLE CAMPUS GRAPH DATA - Locations, distances, and coordinates are simulated sample data for prototype demonstration. They do not represent verified real-world survey or GPS measurements.",
+  "nodes": [
+    {
+      "id": "gate_main",
+      "name": "Main Campus Gate (Sample)",
+      "category": "Entrance",
+      "description": "Tactile paving begins here. Security barrier and campus map tactile plaque.",
+      "coordinates": { "x": 100, "y": 450 }
+    },
+    {
+      "id": "admin_block",
+      "name": "Academic & Admin Block (Sample)",
+      "category": "Academic",
+      "description": "Lecture theatres 1-4, dean's office, registrar, and academic counseling.",
+      "coordinates": { "x": 220, "y": 320 }
+    },
+    {
+      "id": "central_library",
+      "name": "Central Library (Sample)",
+      "category": "Academic",
+      "description": "Braille study section, audio workstations, step-free access via east ramp.",
+      "coordinates": { "x": 420, "y": 200 }
+    },
+    {
+      "id": "cs_building",
+      "name": "Turing CS & Engineering Hall (Sample)",
+      "category": "Academic",
+      "description": "Assistive computing lab, computer science lecture halls, ground floor entrance.",
+      "coordinates": { "x": 620, "y": 240 }
+    },
+    {
+      "id": "student_center",
+      "name": "Student Activity Center (Sample)",
+      "category": "Services",
+      "description": "Accessibility support desk, student organization rooms, lounge.",
+      "coordinates": { "x": 420, "y": 420 }
+    },
+    {
+      "id": "cafeteria",
+      "name": "Campus Canteen & Dining (Sample)",
+      "category": "Dining",
+      "description": "Dining hall, wide order counter aisles, acoustic orientation beacon.",
+      "coordinates": { "x": 280, "y": 520 }
+    },
+    {
+      "id": "hostel_block",
+      "name": "North Student Hostel (Sample)",
+      "category": "Residential",
+      "description": "Student residence halls, accessible ground-floor dormitories, night security desk.",
+      "coordinates": { "x": 160, "y": 180 }
+    },
+    {
+      "id": "health_center",
+      "name": "Health & Wellness Center (Sample)",
+      "category": "Medical",
+      "description": "24/7 campus first-aid clinic, pharmacy, step-free tactile ramp.",
+      "coordinates": { "x": 640, "y": 450 }
+    },
+    {
+      "id": "sports_complex",
+      "name": "Athletics & Sports Complex (Sample)",
+      "category": "Recreation",
+      "description": "Open ground, gymnasium, acoustic boundary markers.",
+      "coordinates": { "x": 550, "y": 600 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_gate_admin",
+      "source": "gate_main",
+      "target": "admin_block",
+      "distance_meters": 130,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": true,
+      "has_stairs": false,
+      "instructions": "Follow the tactile paving straight for 130 meters toward Academic & Admin Block."
+    },
+    {
+      "id": "e_gate_cafe",
+      "source": "gate_main",
+      "target": "cafeteria",
+      "distance_meters": 110,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": true,
+      "has_stairs": false,
+      "instructions": "Bear slight right along the tree-lined path for 110 meters to the Campus Canteen entrance."
+    },
+    {
+      "id": "e_admin_hostel",
+      "source": "admin_block",
+      "target": "hostel_block",
+      "distance_meters": 145,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": true,
+      "has_stairs": false,
+      "instructions": "Head northwest along the residential pathway for 145 meters to reach North Student Hostel."
+    },
+    {
+      "id": "e_hostel_library",
+      "source": "hostel_block",
+      "target": "central_library",
+      "distance_meters": 180,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": false,
+      "has_stairs": false,
+      "instructions": "Proceed east along the garden walkway for 180 meters to the Library west plaza."
+    },
+    {
+      "id": "e_admin_library_stairs",
+      "source": "admin_block",
+      "target": "central_library",
+      "distance_meters": 160,
+      "path_type": "stairs_and_walkway",
+      "has_tactile_paving": false,
+      "has_stairs": true,
+      "stair_count": 8,
+      "instructions": "Proceed straight for 100 meters, then ascend a flight of 8 stairs leading to the Library plaza."
+    },
+    {
+      "id": "e_admin_library_ramp",
+      "source": "admin_block",
+      "target": "central_library",
+      "distance_meters": 195,
+      "path_type": "accessible_ramp",
+      "has_tactile_paving": true,
+      "has_stairs": false,
+      "instructions": "Follow the gently graded accessible ramp around the east garden to the Library entrance (195m, step-free)."
+    },
+    {
+      "id": "e_library_cs",
+      "source": "central_library",
+      "target": "cs_building",
+      "distance_meters": 140,
+      "path_type": "covered_arcade",
+      "has_tactile_paving": true,
+      "has_stairs": false,
+      "instructions": "Walk under the covered arcade walkway for 140 meters to reach the Computer Science Hall."
+    },
+    {
+      "id": "e_admin_center",
+      "source": "admin_block",
+      "target": "student_center",
+      "distance_meters": 150,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": true,
+      "has_stairs": false,
+      "instructions": "Head southeast across the central quad along the paved tactile path for 150 meters."
+    },
+    {
+      "id": "e_center_library",
+      "source": "student_center",
+      "target": "central_library",
+      "distance_meters": 170,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": true,
+      "has_stairs": false,
+      "instructions": "Head north along the tree-shaded pathway for 170 meters toward the Library entrance."
+    },
+    {
+      "id": "e_center_cs",
+      "source": "student_center",
+      "target": "cs_building",
+      "distance_meters": 165,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": false,
+      "has_stairs": false,
+      "instructions": "Walk northeast for 165 meters toward the CS Hall entrance."
+    },
+    {
+      "id": "e_cafe_center",
+      "source": "cafeteria",
+      "target": "student_center",
+      "distance_meters": 120,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": true,
+      "has_stairs": false,
+      "instructions": "Walk east along the canteen terrace walkway for 120 meters to the Student Activity Center."
+    },
+    {
+      "id": "e_center_health",
+      "source": "student_center",
+      "target": "health_center",
+      "distance_meters": 150,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": true,
+      "has_stairs": false,
+      "instructions": "Follow the tactile walkway east for 150 meters directly to the Health & Wellness Center."
+    },
+    {
+      "id": "e_cs_health",
+      "source": "cs_building",
+      "target": "health_center",
+      "distance_meters": 160,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": false,
+      "has_stairs": false,
+      "instructions": "Head south down the CS corridor path for 160 meters to the Health Center."
+    },
+    {
+      "id": "e_center_sports",
+      "source": "student_center",
+      "target": "sports_complex",
+      "distance_meters": 200,
+      "path_type": "paved_walkway",
+      "has_tactile_paving": false,
+      "has_stairs": false,
+      "instructions": "Head south toward the athletic fields for 200 meters. Pavement transitions to rubberized track near entrance."
+    }
+  ]
+}

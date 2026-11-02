@@ -1,0 +1,37 @@
+/* PathSight Responsive and Accessibility Styling */
+
+.app-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.nav-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 12px;
+  min-width: 220px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .nav-sidebar {
+    min-width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 8px;
+    border-right: none !important;
+    border-bottom: 1px solid #1e293b;
+  }
+
+  .nav-sidebar button {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px 10px !important;
+  }
+}
