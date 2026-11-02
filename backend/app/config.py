@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
-    PROJECT_NAME: str = "Assistive Navigation API"
+    PROJECT_NAME: str = "PathSight Assistive Navigation API"
     VERSION: str = "0.1.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     HOST: str = os.getenv("HOST", "127.0.0.1")

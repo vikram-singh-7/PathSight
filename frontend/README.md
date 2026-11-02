@@ -1,32 +1,25 @@
-# React + TypeScript + Vite
+# PathSight — Frontend Web Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The accessible web client for **PathSight (PS-15: Assistive Navigation for Visually Impaired Students)**, built with React 19, TypeScript, and Vite.
 
-Currently, two official plugins are available:
+## Features
+- **Live Camera Stream**: Integrates with `navigator.mediaDevices.getUserMedia` and captures throttled JPEG frames for YOLO inference.
+- **Accessible Interfaces**: WCAG AAA High-Contrast Yellow on Black mode, font scaling, tactile touch targets ($\ge 48\text{px}$), and keyboard navigation (`Space`, `M`, `Alt+1/2/3`).
+- **Web Speech & Earcons**: Browser-native text-to-speech with scene hash deduplication and Web Audio synthesized earcon cues.
+- **Campus Route Planning**: Interactive SVG campus graph map and manual waypoint arrival confirmation.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Quick Start
+```powershell
+# Install dependencies
+npm install
 
-## React Compiler
+# Start development server
+npm run dev
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+# Run unit tests
+npm test
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Type-check and lint
+npm run lint
+npm run build
 ```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.

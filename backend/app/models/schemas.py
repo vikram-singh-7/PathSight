@@ -6,7 +6,7 @@ class HealthResponse(BaseModel):
     status: str = Field(..., example="ok")
     version: str = Field(..., example="0.1.0")
     timestamp: datetime
-    service: str = Field(..., example="Assistive Navigation API")
+    service: str = Field(..., example="PathSight Assistive Navigation API")
 
 class Coordinates(BaseModel):
     x: float

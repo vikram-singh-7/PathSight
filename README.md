@@ -84,7 +84,7 @@ PathSight unites micro-obstacle computer vision with macro-level campus pathfind
 ## 4. Project Directory Structure
 
 ```
-d:\Test\
+PathSight\
 ├── README.md                           # Main project documentation and setup guide
 ├── HACKATHON_DEMO_GUIDE.md             # 3-minute pitch script, slide outline, and judge Q&A
 │
@@ -196,7 +196,7 @@ Open a new PowerShell terminal:
 
 ```powershell
 # Navigate to the backend directory
-Set-Location d:\Test\backend
+Set-Location PathSight\backend   # or: cd backend
 
 # Create a virtual environment
 python -m venv venv
@@ -209,7 +209,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # Verify model weights:
-# Pretrained yolov8n.pt is pre-cached in d:\Test\backend\app\models\yolov8n.pt
+# Pretrained yolov8n.pt is pre-cached in backend\app\models\yolov8n.pt
 ```
 
 #### Launch the Backend Server:
@@ -226,7 +226,7 @@ Open a second PowerShell terminal:
 
 ```powershell
 # Navigate to the frontend directory
-Set-Location d:\Test\frontend
+Set-Location PathSight\frontend   # or: cd frontend
 
 # Install npm packages
 npm install
@@ -244,28 +244,28 @@ All test suites run locally without internet access:
 
 ### 1. Frontend Speech & Formatting Unit Tests
 ```powershell
-Set-Location d:\Test\frontend
+Set-Location PathSight\frontend   # or: cd frontend
 npm test
 ```
 *Executes `frontend/tests/speech.test.ts` via Node.js with 7 assertions verifying spatial phrases, multi-object counts, urgent alerts, and deduplication signatures.*
 
 ### 2. Backend Dijkstra Routing Unit Tests
 ```powershell
-Set-Location d:\Test\backend
+Set-Location PathSight\backend    # or: cd backend
 .\venv\Scripts\python.exe tests/test_routing.py
 ```
 *Verifies 6 test cases: valid accessible routes, step-free ramp selection over stairs, identical start/goal nodes, invalid node handling, dynamic detour calculation, and reverse path guidance.*
 
 ### 3. Backend Full API Integration Tests
 ```powershell
-Set-Location d:\Test\backend
+Set-Location PathSight\backend    # or: cd backend
 .\venv\Scripts\python.exe tests/test_api_integration.py
 ```
 *Tests all 14 FastAPI REST endpoints end-to-end, including image detection payloads, missing image error handling (HTTP 400), node retrieval, edge retrieval, routing, and obstacle blocking (HTTP 404 for invalid edge).*
 
 ### 4. Code Quality & Build Checks
 ```powershell
-Set-Location d:\Test\frontend
+Set-Location PathSight\frontend   # or: cd frontend
 npm run lint    # Runs oxlint across all TypeScript files
 npm run build   # Type checks with tsc -b and bundles with Vite
 ```
@@ -304,4 +304,4 @@ npm run build   # Type checks with tsc -b and bundles with Vite
 | **Vision Backend Disconnected** | FastAPI server is stopped or port 8000 is occupied | Verify Terminal 1 is running `uvicorn app.main:app`. Check `http://127.0.0.1:8000/health`. Click "Retry Connection" in the UI banner. |
 | **Speech Audio is Silent** | System volume muted or browser autoplay policy blocked audio | Click anywhere on the webpage or click "Test Voice" in the header to activate browser audio. Ensure speech status in header does not say `Voice: Muted`. |
 | **Vite Port Conflict** | Port 5173 is already in use by another instance | Vite will automatically suggest port 5174. Open the URL shown in your terminal. |
-| **Model Weight Not Found** | Model file missing from models folder | Confirm `yolov8n.pt` is present in `d:\Test\backend\app\models\yolov8n.pt`. The backend automatically checks both `app/models/` and root `backend/`. |
+| **Model Weight Not Found** | Model file missing from models folder | Confirm `yolov8n.pt` is present in `backend/app/models/yolov8n.pt`. The backend automatically checks both `app/models/` and root `backend/`. |
