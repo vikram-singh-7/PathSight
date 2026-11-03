@@ -101,28 +101,22 @@ def post_mobile_stream_frame(payload: MobileStreamPayload):
         confidence_threshold=payload.confidence_threshold or 0.35,
     )
 
-    primary_hazard = None
-    for item in result.detections:
-        if item.is_obstacle and item.visual_proximity != "distant":
-            primary_hazard = item.label
-            break
-
     latest_mobile_feed = {
         "image": payload.image,
         "timestamp": datetime.utcnow().isoformat(),
         "detections": [d.dict() for d in result.detections],
-        "summary": result.summary,
-        "processing_ms": result.processing_time_ms,
+        "summary": result.speech_summary,
+        "processing_ms": result.processing_ms,
         "device_name": payload.device_name or "Mobile Phone Camera",
-        "primary_hazard": primary_hazard,
+        "primary_hazard": result.primary_hazard,
     }
 
     return {
         "status": "ok",
         "detections": latest_mobile_feed["detections"],
-        "summary": result.summary,
-        "processing_ms": result.processing_time_ms,
-        "primary_hazard": primary_hazard,
+        "summary": result.speech_summary,
+        "processing_ms": result.processing_ms,
+        "primary_hazard": result.primary_hazard,
     }
 
 @app.get("/api/camera/latest_frame", tags=["Camera"])
@@ -164,8 +158,8 @@ def detect_from_ip_camera(payload: IPCamFetchPayload):
             "success": True,
             "image": b64_encoded,
             "detections": result.detections,
-            "summary": result.summary,
-            "processing_time_ms": result.processing_time_ms,
+            "summary": result.speech_summary,
+            "processing_time_ms": result.processing_ms,
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to fetch frame from camera URL: {str(e)}")
