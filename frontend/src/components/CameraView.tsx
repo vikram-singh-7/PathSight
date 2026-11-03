@@ -116,10 +116,10 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const isSpeaking = voiceStatus === 'speaking';
   const isUnavailable = voiceStatus === 'unavailable';
 
-  // Compute mobile transmitter URL based on current host
+  // Compute mobile transmitter URL based on current host and port
   const phoneTransmitterUrl =
     typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:${window.location.port}/?mode=cam`
+      ? `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}/?mode=cam`
       : 'http://localhost:5173/?mode=cam';
 
   const handleCopyLink = async () => {

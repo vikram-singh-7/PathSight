@@ -1,10 +1,6 @@
-const defaultBackendHost =
-  typeof window !== 'undefined' && window.location.hostname
-    ? window.location.hostname
-    : 'localhost';
-
-export const API_BASE_URL: string =
-  import.meta.env.VITE_API_BASE_URL || `http://${defaultBackendHost}:8000`;
+// Empty string allows requests to route through Vite's reverse proxy on the same port/origin,
+// working seamlessly on localhost, local Wi-Fi IP, and HTTPS tunnels with zero CORS or Mixed Content errors.
+export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || '';
 
 export const APP_NAME = 'PathSight — Campus Assistive Navigation';
 export const APP_DESCRIPTION =
