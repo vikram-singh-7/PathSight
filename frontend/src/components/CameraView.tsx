@@ -3,6 +3,7 @@ import {
   Play,
   Square,
   SwitchCamera,
+  Camera,
   AlertOctagon,
   Eye,
   CameraOff,
@@ -23,6 +24,9 @@ interface CameraViewProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   cameraStatus: 'idle' | 'requesting' | 'active' | 'denied' | 'error';
   errorMessage: string | null;
+  facingMode: 'environment' | 'user';
+  videoDevices: MediaDeviceInfo[];
+  selectedDeviceId: string | null;
   isAssistanceActive: boolean;
   detections: DetectionItem[];
   primaryHazard: string | null;
@@ -35,6 +39,7 @@ interface CameraViewProps {
   contrastMode: ContrastMode;
   onToggleAssistance: () => void;
   onToggleFacingMode: () => void;
+  onSelectCamera: (deviceId: string) => void;
   onRetryBackend: () => void;
   onToggleMute: () => void;
   onTestVoice: () => void;
@@ -44,6 +49,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   videoRef,
   cameraStatus,
   errorMessage,
+  facingMode,
+  videoDevices,
+  selectedDeviceId,
   isAssistanceActive,
   detections,
   primaryHazard,
@@ -56,6 +64,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   contrastMode,
   onToggleAssistance,
   onToggleFacingMode,
+  onSelectCamera,
   onRetryBackend,
   onToggleMute,
   onTestVoice,
@@ -147,77 +156,133 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
       )}
 
-      {/* Primary Action Button (Tactile, large, >=56px height) */}
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch' }}>
-        <button
-          onClick={onToggleAssistance}
-          style={{
-            flex: 1,
-            minHeight: '56px',
-            borderRadius: '10px',
-            border: isHighContrast ? '3px solid #facc15' : 'none',
-            backgroundColor: isAssistanceActive
-              ? (isHighContrast ? '#000000' : '#e11d48')
-              : (isHighContrast ? '#facc15' : '#0d9488'),
-            color: isAssistanceActive
-              ? (isHighContrast ? '#facc15' : '#ffffff')
-              : (isHighContrast ? '#000000' : '#ffffff'),
-            fontSize: '1.15rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-            transition: 'transform 0.1s ease',
-          }}
-          aria-label={
-            isAssistanceActive
-              ? 'Pause camera detection and voice assistance (or press Spacebar)'
-              : 'Start camera detection and voice assistance (or press Spacebar)'
-          }
-        >
-          {isAssistanceActive ? (
-            <>
-              <Square size={22} fill="currentColor" aria-hidden="true" />
-              <span>PAUSE VISION &amp; VOICE (SPACE)</span>
-            </>
-          ) : (
-            <>
-              <Play size={22} fill="currentColor" aria-hidden="true" />
-              <span>START VISION &amp; VOICE (SPACE)</span>
-            </>
-          )}
-        </button>
+      {/* Primary Action Button & Camera Selector */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch', flexWrap: 'wrap' }}>
+          <button
+            onClick={onToggleAssistance}
+            style={{
+              flex: '2 1 240px',
+              minHeight: '56px',
+              borderRadius: '10px',
+              border: isHighContrast ? '3px solid #facc15' : 'none',
+              backgroundColor: isAssistanceActive
+                ? (isHighContrast ? '#000000' : '#e11d48')
+                : (isHighContrast ? '#facc15' : '#0d9488'),
+              color: isAssistanceActive
+                ? (isHighContrast ? '#facc15' : '#ffffff')
+                : (isHighContrast ? '#000000' : '#ffffff'),
+              fontSize: '1.15rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+              transition: 'transform 0.1s ease',
+            }}
+            aria-label={
+              isAssistanceActive
+                ? 'Pause camera detection and voice assistance (or press Spacebar)'
+                : 'Start camera detection and voice assistance (or press Spacebar)'
+            }
+          >
+            {isAssistanceActive ? (
+              <>
+                <Square size={22} fill="currentColor" aria-hidden="true" />
+                <span>PAUSE VISION &amp; VOICE (SPACE)</span>
+              </>
+            ) : (
+              <>
+                <Play size={22} fill="currentColor" aria-hidden="true" />
+                <span>START VISION &amp; VOICE (SPACE)</span>
+              </>
+            )}
+          </button>
 
-        {/* Switch Camera Button (Mobile orientation) */}
-        <button
-          onClick={onToggleFacingMode}
-          disabled={cameraStatus !== 'active'}
-          style={{
-            minWidth: '56px',
-            minHeight: '56px',
-            padding: '0 16px',
-            borderRadius: '10px',
-            border: isHighContrast ? '2px solid #facc15' : '1px solid #334155',
-            backgroundColor: isHighContrast ? '#111' : '#1e293b',
-            color: isHighContrast ? '#facc15' : '#e2e8f0',
-            cursor: cameraStatus === 'active' ? 'pointer' : 'not-allowed',
-            opacity: cameraStatus === 'active' ? 1 : 0.5,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-          }}
-          aria-label="Switch camera between front and environment lens"
-          title="Switch camera device"
-        >
-          <SwitchCamera size={20} aria-hidden="true" />
-          <span style={{ display: 'none' }}>Flip Camera</span>
-        </button>
+          {/* Quick Lens Switcher (Rear Environment vs Front Selfie) */}
+          <button
+            onClick={onToggleFacingMode}
+            style={{
+              flex: '1 1 180px',
+              minHeight: '56px',
+              padding: '0 16px',
+              borderRadius: '10px',
+              border: isHighContrast ? '2px solid #facc15' : '1px solid #334155',
+              backgroundColor: isHighContrast ? '#111' : '#1e293b',
+              color: isHighContrast ? '#facc15' : '#e2e8f0',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+            }}
+            aria-label={`Switch camera lens. Currently using ${facingMode === 'environment' ? 'Rear (World)' : 'Front (Selfie)'} lens`}
+            title="Switch camera lens (Rear/World vs Front/Selfie)"
+          >
+            <SwitchCamera size={20} aria-hidden="true" />
+            <span>
+              {facingMode === 'environment' ? 'Lens: Rear (World)' : 'Lens: Front (Selfie)'}
+            </span>
+          </button>
+        </div>
+
+        {/* Multi-Camera Hardware Selector (Displays when multiple video inputs exist) */}
+        {videoDevices.length > 1 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '8px 12px',
+              backgroundColor: isHighContrast ? '#000000' : '#0f172a',
+              border: isHighContrast ? '1px solid #facc15' : '1px solid #1e293b',
+              borderRadius: '8px',
+              fontSize: '0.825rem',
+            }}
+          >
+            <Camera size={16} style={{ color: isHighContrast ? '#facc15' : '#38bdf8', flexShrink: 0 }} aria-hidden="true" />
+            <label
+              htmlFor="camera-device-select"
+              style={{
+                color: isHighContrast ? '#facc15' : '#94a3b8',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Camera Input:
+            </label>
+            <select
+              id="camera-device-select"
+              value={selectedDeviceId || ''}
+              onChange={(e) => onSelectCamera(e.target.value)}
+              style={{
+                flex: 1,
+                minHeight: '36px',
+                backgroundColor: isHighContrast ? '#111' : '#1e293b',
+                color: isHighContrast ? '#facc15' : '#f8fafc',
+                border: isHighContrast ? '1px solid #facc15' : '1px solid #334155',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                fontSize: '0.825rem',
+                outline: 'none',
+              }}
+              aria-label="Select camera hardware device"
+            >
+              <option value="">
+                Auto / {facingMode === 'environment' ? 'Rear Lens (Environment)' : 'Front Lens (Selfie)'}
+              </option>
+              {videoDevices.map((dev, i) => (
+                <option key={dev.deviceId || i} value={dev.deviceId}>
+                  {dev.label || `Camera Device ${i + 1}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Voice Control Bar (Immediate accessible controls right on the main screen) */}

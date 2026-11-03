@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { Header } from './components/Header';
-import { SafetyBanner } from './components/SafetyBanner';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { CameraView } from './components/CameraView';
 import { ObservationFeed } from './components/ObservationFeed';
@@ -537,9 +536,6 @@ export function App() {
             gap: '16px',
           }}
         >
-          {/* Universal Safety and Responsible AI Banner */}
-          <SafetyBanner contrastMode={settings.contrastMode} />
-
           {/* Tab 1: Assist & Vision (Primary Focus) */}
           <div
             style={{
@@ -552,6 +548,9 @@ export function App() {
               videoRef={camera.videoRef}
               cameraStatus={camera.status}
               errorMessage={camera.errorMessage}
+              facingMode={camera.facingMode}
+              videoDevices={camera.videoDevices}
+              selectedDeviceId={camera.selectedDeviceId}
               isAssistanceActive={isAssistanceActive}
               detections={detections}
               primaryHazard={primaryHazard}
@@ -564,6 +563,7 @@ export function App() {
               contrastMode={settings.contrastMode}
               onToggleAssistance={handleToggleAssistance}
               onToggleFacingMode={camera.toggleFacingMode}
+              onSelectCamera={camera.selectCamera}
               onRetryBackend={checkBackendStatus}
               onToggleMute={speech.toggleMute}
               onTestVoice={speech.speakTest}

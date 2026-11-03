@@ -1,14 +1,32 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 export type CameraStatus = 'idle' | 'requesting' | 'active' | 'denied' | 'error';
+export type FacingMode = 'environment' | 'user';
 
 export function useCamera() {
   const [status, setStatus] = useState<CameraStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [facingMode, setFacingMode] = useState<FacingMode>('environment');
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Enumerate connected video input devices (webcams, mobile front/back, phone cams)
+  const refreshDevices = useCallback(async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      return;
+    }
+    try {
+      const allDevices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = allDevices.filter((d) => d.kind === 'videoinput');
+      setVideoDevices(videoInputs);
+    } catch {
+      // Permission not granted yet or enumeration unavailable
+    }
+  }, []);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -21,66 +39,110 @@ export function useCamera() {
     setStatus('idle');
   }, []);
 
-  const startCamera = useCallback(async () => {
-    // If stream already active, return
-    if (streamRef.current && status === 'active') {
-      return;
-    }
+  const startStreamWithConstraints = useCallback(
+    async (targetDeviceId: string | null, targetFacing: FacingMode) => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setStatus('error');
+        setErrorMessage('Camera access is not supported by this browser environment.');
+        return null;
+      }
 
-    // Clean up any stale tracks before starting fresh
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
+      // Stop existing tracks before opening new camera
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
 
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('error');
-      setErrorMessage('Camera access is not supported by this browser environment.');
-      return;
-    }
-
-    setStatus('requesting');
-    setErrorMessage(null);
-
-    try {
-      // First try preferred facingMode
       const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
+        video: targetDeviceId
+          ? {
+              deviceId: { exact: targetDeviceId },
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+            }
+          : {
+              facingMode: { ideal: targetFacing },
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+            },
         audio: false,
       };
 
-      let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch {
-        // Fallback to basic video constraint if ideal facingMode fails
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      }
-
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        let stream: MediaStream;
         try {
-          await videoRef.current.play();
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch {
-          // Play request interrupted or browser waiting for interaction
+          // Fallback to basic video constraint if ideal facingMode/deviceId fails
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         }
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          try {
+            await videoRef.current.play();
+          } catch {
+            // Play request interrupted or browser waiting for interaction
+          }
+        }
+
+        setStatus('active');
+        setErrorMessage(null);
+
+        // Re-enumerate to get device labels now that permission has been granted
+        refreshDevices();
+        return stream;
+      } catch (err: unknown) {
+        if (
+          err instanceof DOMException &&
+          (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')
+        ) {
+          setStatus('denied');
+          setErrorMessage('Camera permission was denied. Please allow camera access in browser settings.');
+        } else {
+          setStatus('error');
+          setErrorMessage(
+            err instanceof Error ? err.message : 'Unable to connect to camera device.'
+          );
+        }
+        return null;
       }
-      setStatus('active');
-    } catch (err: unknown) {
-      if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
-        setStatus('denied');
-        setErrorMessage('Camera permission was denied. Please allow camera access in browser settings.');
-      } else {
-        setStatus('error');
-        setErrorMessage(err instanceof Error ? err.message : 'Unable to connect to camera device.');
-      }
+    },
+    [refreshDevices]
+  );
+
+  const startCamera = useCallback(async () => {
+    if (streamRef.current && status === 'active') {
+      return;
     }
-  }, [facingMode, status]);
+    setStatus('requesting');
+    setErrorMessage(null);
+    await startStreamWithConstraints(selectedDeviceId, facingMode);
+  }, [facingMode, selectedDeviceId, startStreamWithConstraints, status]);
+
+  // Toggle between Rear Camera (Environment / World) and Front Camera (Selfie / User)
+  const toggleFacingMode = useCallback(async () => {
+    const nextFacing: FacingMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextFacing);
+    setSelectedDeviceId(null); // clear fixed deviceId to respect facingMode
+
+    // If camera is currently active, seamlessly switch live stream
+    if (status === 'active' || streamRef.current) {
+      await startStreamWithConstraints(null, nextFacing);
+    }
+  }, [facingMode, startStreamWithConstraints, status]);
+
+  // Select a specific camera device from list (e.g. mobile back, front, USB, or virtual cam)
+  const selectCamera = useCallback(
+    async (deviceId: string) => {
+      setSelectedDeviceId(deviceId);
+      if (status === 'active' || streamRef.current) {
+        await startStreamWithConstraints(deviceId, facingMode);
+      }
+    },
+    [facingMode, startStreamWithConstraints, status]
+  );
 
   // Keep video element synchronized if component remounts or tab switches
   useEffect(() => {
@@ -92,11 +154,30 @@ export function useCamera() {
     }
   });
 
-  const toggleFacingMode = useCallback(() => {
-    stopCamera();
-    setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
-  }, [stopCamera]);
+  // Initial device query and listener for hardware changes (USB cameras, phone plugged in)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchInputs = async () => {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (isMounted) {
+          setVideoDevices(devices.filter((d) => d.kind === 'videoinput'));
+        }
+      } catch {
+        // Ignored if permissions not granted yet
+      }
+    };
 
+    fetchInputs();
+    navigator.mediaDevices?.addEventListener('devicechange', fetchInputs);
+    return () => {
+      isMounted = false;
+      navigator.mediaDevices?.removeEventListener('devicechange', fetchInputs);
+    };
+  }, []);
+
+  // Capture current video frame as downscaled JPEG data URL for YOLO inference
   const captureFrame = useCallback((): string | null => {
     const video = videoRef.current;
     if (!video || status !== 'active' || video.readyState < 2) {
@@ -120,6 +201,7 @@ export function useCamera() {
     return canvas.toDataURL('image/jpeg', 0.65);
   }, [status]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (streamRef.current) {
@@ -133,10 +215,13 @@ export function useCamera() {
     status,
     errorMessage,
     facingMode,
+    videoDevices,
+    selectedDeviceId,
     startCamera,
     stopCamera,
     toggleFacingMode,
+    selectCamera,
+    refreshDevices,
     captureFrame,
   };
 }
-
