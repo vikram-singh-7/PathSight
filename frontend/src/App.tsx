@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { Header } from './components/Header';
 import { NavigationSidebar } from './components/NavigationSidebar';
-import { CameraView } from './components/CameraView';
+import { CameraView, type CameraMode } from './components/CameraView';
+import { MobileCameraTransmitter } from './components/MobileCameraTransmitter';
 import { ObservationFeed } from './components/ObservationFeed';
 import { CampusMapCanvas } from './components/CampusMapCanvas';
 import { RoutePlanner } from './components/RoutePlanner';
@@ -19,6 +20,8 @@ import {
   calculateRoute,
   updateCampusObstacle,
   detectFrame,
+  fetchLatestMobileCameraFrame,
+  detectFromIpCameraUrl,
 } from './services/api';
 
 import type {
@@ -43,6 +46,19 @@ export function App() {
     autoSpeakObservations: true,
     detectionThrottleFps: 2,
     confidenceThreshold: 0.35,
+  });
+
+  // Mobile camera transmitter standalone mode (triggered via ?mode=cam)
+  const [isTransmitterMode, setIsTransmitterMode] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && window.location.search.includes('mode=cam');
+  });
+
+  // Camera video feed source
+  const [cameraMode, setCameraMode] = useState<CameraMode>('local');
+  const [remoteImage, setRemoteImage] = useState<string | null>(null);
+  const [ipCamUrl, setIpCamUrl] = useState<string>(() => {
+    const host = typeof window !== 'undefined' ? window.location.hostname : '10.208.47.64';
+    return `http://${host}:8080/shot.jpg`;
   });
 
   // Assistance active state
@@ -200,7 +216,9 @@ export function App() {
   const handleToggleAssistance = useCallback(async () => {
     if (isAssistanceActive) {
       setIsAssistanceActive(false);
-      camera.stopCamera();
+      if (cameraMode === 'local') {
+        camera.stopCamera();
+      }
       if (detectionTimerRef.current) {
         window.clearInterval(detectionTimerRef.current);
         detectionTimerRef.current = null;
@@ -212,12 +230,20 @@ export function App() {
       addObservation('Visual and voice assistance paused.', 'system');
     } else {
       setIsAssistanceActive(true);
-      await camera.startCamera();
+      if (cameraMode === 'local') {
+        await camera.startCamera();
+      }
       speech.playEarcon('success');
-      speech.speak('Vision assistance active. Scanning environment.');
-      addObservation('Assistance started. Scanning camera view for objects & obstacles.', 'info');
+      const startMsg =
+        cameraMode === 'mobile_wireless'
+          ? 'Vision assistance active. Receiving wireless mobile phone camera stream.'
+          : cameraMode === 'ip_cam'
+          ? 'Vision assistance active. Connecting to IP camera stream.'
+          : 'Vision assistance active. Scanning environment.';
+      speech.speak(startMsg);
+      addObservation(`Assistance started in ${cameraMode} camera mode.`, 'info');
     }
-  }, [isAssistanceActive, camera, speech, addObservation]);
+  }, [isAssistanceActive, cameraMode, camera, speech, addObservation]);
 
   // Refs to decouple detection loop from hook object re-instantiations
   const captureFrameRef = useRef(camera.captureFrame);
@@ -228,13 +254,17 @@ export function App() {
     speakRef.current = speech.speak;
   });
 
-  // Continuous frame capture loop when assistance is active
+  // Continuous frame capture / remote stream polling loop when assistance is active
   useEffect(() => {
-    if (!isAssistanceActive || camera.status !== 'active') {
+    if (!isAssistanceActive) {
       if (detectionTimerRef.current) {
         window.clearInterval(detectionTimerRef.current);
         detectionTimerRef.current = null;
       }
+      return;
+    }
+
+    if (cameraMode === 'local' && camera.status !== 'active') {
       return;
     }
 
@@ -243,33 +273,84 @@ export function App() {
     detectionTimerRef.current = window.setInterval(async () => {
       if (isDetectingRef.current) return;
 
-      const frame = captureFrameRef.current();
-      if (!frame) return;
-
       try {
-        isDetectingRef.current = true;
-        setIsDetecting(true);
+        if (cameraMode === 'local') {
+          const frame = captureFrameRef.current();
+          if (!frame) return;
 
-        const res = await detectFrame(frame, settings.confidenceThreshold);
-        setDetections(res.detections);
-        setPrimaryHazard(res.primary_hazard || null);
-        setSpeechSummary(res.speech_summary);
-        setLastProcessingMs(res.processing_ms);
-        setBackendError(null);
+          isDetectingRef.current = true;
+          setIsDetecting(true);
 
-        // Natural, debounced voice announcements from genuine detections
-        const { speechText, isUrgent, sceneSignature } = formatDetectionSpeech(res.detections);
-        const now = Date.now();
+          const res = await detectFrame(frame, settings.confidenceThreshold);
+          setDetections(res.detections);
+          setPrimaryHazard(res.primary_hazard || null);
+          setSpeechSummary(res.speech_summary);
+          setLastProcessingMs(res.processing_ms);
+          setBackendError(null);
 
-        // Speak & log if scene signature changed OR > 4.5 seconds have elapsed
-        if (sceneSignature !== lastObsSignatureRef.current || now - lastObsTimeRef.current > 4500) {
-          lastObsSignatureRef.current = sceneSignature;
-          lastObsTimeRef.current = now;
+          // Natural, debounced voice announcements from genuine detections
+          const { speechText, isUrgent, sceneSignature } = formatDetectionSpeech(res.detections);
+          const now = Date.now();
 
-          addObservation(speechText, 'obstacle', isUrgent);
+          // Speak & log if scene signature changed OR > 4.5 seconds have elapsed
+          if (sceneSignature !== lastObsSignatureRef.current || now - lastObsTimeRef.current > 4500) {
+            lastObsSignatureRef.current = sceneSignature;
+            lastObsTimeRef.current = now;
 
-          if (settings.autoSpeakObservations) {
-            speakRef.current(speechText, isUrgent ? 'urgent' : 'normal');
+            addObservation(speechText, 'obstacle', isUrgent);
+
+            if (settings.autoSpeakObservations) {
+              speakRef.current(speechText, isUrgent ? 'urgent' : 'normal');
+            }
+          }
+        } else if (cameraMode === 'mobile_wireless') {
+          isDetectingRef.current = true;
+          setIsDetecting(true);
+
+          const res = await fetchLatestMobileCameraFrame();
+          if (res.has_stream && res.image) {
+            setRemoteImage(res.image);
+            setDetections(res.detections || []);
+            setPrimaryHazard(res.primary_hazard || null);
+            setSpeechSummary(res.summary || 'Mobile phone camera feed active.');
+            setLastProcessingMs(res.processing_ms || 28);
+            setBackendError(null);
+
+            const { speechText, isUrgent, sceneSignature } = formatDetectionSpeech(res.detections || []);
+            const now = Date.now();
+            if (sceneSignature !== lastObsSignatureRef.current || now - lastObsTimeRef.current > 4500) {
+              lastObsSignatureRef.current = sceneSignature;
+              lastObsTimeRef.current = now;
+              addObservation(speechText, 'obstacle', isUrgent);
+              if (settings.autoSpeakObservations) {
+                speakRef.current(speechText, isUrgent ? 'urgent' : 'normal');
+              }
+            }
+          }
+        } else if (cameraMode === 'ip_cam') {
+          if (!ipCamUrl) return;
+
+          isDetectingRef.current = true;
+          setIsDetecting(true);
+
+          const res = await detectFromIpCameraUrl(ipCamUrl, settings.confidenceThreshold);
+          if (res.success && res.image) {
+            setRemoteImage(res.image);
+            setDetections(res.detections || []);
+            setSpeechSummary(res.summary || 'IP camera feed active.');
+            setLastProcessingMs(res.processing_time_ms || 32);
+            setBackendError(null);
+
+            const { speechText, isUrgent, sceneSignature } = formatDetectionSpeech(res.detections || []);
+            const now = Date.now();
+            if (sceneSignature !== lastObsSignatureRef.current || now - lastObsTimeRef.current > 4500) {
+              lastObsSignatureRef.current = sceneSignature;
+              lastObsTimeRef.current = now;
+              addObservation(speechText, 'obstacle', isUrgent);
+              if (settings.autoSpeakObservations) {
+                speakRef.current(speechText, isUrgent ? 'urgent' : 'normal');
+              }
+            }
           }
         }
       } catch (err: unknown) {
@@ -290,7 +371,9 @@ export function App() {
     };
   }, [
     isAssistanceActive,
+    cameraMode,
     camera.status,
+    ipCamUrl,
     settings.detectionThrottleFps,
     settings.confidenceThreshold,
     settings.autoSpeakObservations,
@@ -486,6 +569,18 @@ export function App() {
   const currentConfirmedNodeId = isNavigating && currentStep ? currentStep.from_node : selectedSource;
   const nextTargetNodeId = isNavigating && currentStep ? currentStep.to_node : selectedDestination;
 
+  // Standalone Mobile Camera Transmitter Mode (when accessed from a phone via ?mode=cam)
+  if (isTransmitterMode) {
+    return (
+      <MobileCameraTransmitter
+        onExit={() => {
+          setIsTransmitterMode(false);
+          window.history.replaceState({}, '', window.location.pathname);
+        }}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -551,6 +646,9 @@ export function App() {
               facingMode={camera.facingMode}
               videoDevices={camera.videoDevices}
               selectedDeviceId={camera.selectedDeviceId}
+              cameraMode={cameraMode}
+              remoteImage={remoteImage}
+              ipCamUrl={ipCamUrl}
               isAssistanceActive={isAssistanceActive}
               detections={detections}
               primaryHazard={primaryHazard}
@@ -564,6 +662,15 @@ export function App() {
               onToggleAssistance={handleToggleAssistance}
               onToggleFacingMode={camera.toggleFacingMode}
               onSelectCamera={camera.selectCamera}
+              onSelectCameraMode={(newMode) => {
+                if (cameraMode === 'local' && newMode !== 'local') {
+                  camera.stopCamera();
+                }
+                setCameraMode(newMode);
+                setRemoteImage(null);
+              }}
+              onUpdateIpCamUrl={setIpCamUrl}
+              onOpenMobileTransmitter={() => setIsTransmitterMode(true)}
               onRetryBackend={checkBackendStatus}
               onToggleMute={speech.toggleMute}
               onTestVoice={speech.speakTest}
@@ -578,10 +685,9 @@ export function App() {
 
           {/* Tab 2: Campus Route (Navigate) */}
           <div
+            className="navigate-workspace"
             style={{
-              display: activeTab === 'navigate' ? 'flex' : 'none',
-              flexDirection: 'column',
-              gap: '20px',
+              display: activeTab === 'navigate' ? undefined : 'none',
             }}
           >
             <RoutePlanner

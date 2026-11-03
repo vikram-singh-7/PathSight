@@ -130,3 +130,73 @@ export async function detectFrame(
   }
   return response.json();
 }
+
+export async function postMobileCameraFrame(
+  imageBase64: string,
+  confidenceThreshold: number = 0.35,
+  deviceName: string = 'Mobile Camera'
+): Promise<{ status: string; summary: string; processing_ms: number; detections: any[] }> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/camera/stream_frame`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({
+      image: imageBase64,
+      confidence_threshold: confidenceThreshold,
+      device_name: deviceName,
+    }),
+  }, 3000);
+  if (!response.ok) {
+    throw new Error(`Mobile camera stream failed: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchLatestMobileCameraFrame(): Promise<{
+  has_stream: boolean;
+  image?: string;
+  timestamp?: string;
+  detections?: any[];
+  summary?: string;
+  processing_ms?: number;
+  device_name?: string;
+  primary_hazard?: string | null;
+  message?: string;
+}> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/camera/latest_frame`, {
+    headers: { 'Accept': 'application/json' },
+  }, 3000);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch mobile frame: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function detectFromIpCameraUrl(
+  streamUrl: string,
+  confidenceThreshold: number = 0.35
+): Promise<{
+  success: boolean;
+  image: string;
+  detections: any[];
+  summary: string;
+  processing_time_ms: number;
+}> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/camera/detect_ipcam`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({
+      stream_url: streamUrl,
+      confidence_threshold: confidenceThreshold,
+    }),
+  }, 5000);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch IP camera: ${response.statusText}`);
+  }
+  return response.json();
+}

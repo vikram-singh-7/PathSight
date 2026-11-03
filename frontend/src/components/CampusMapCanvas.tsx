@@ -26,9 +26,18 @@ export const CampusMapCanvas: React.FC<CampusMapCanvasProps> = ({
 }) => {
   const isHighContrast = contrastMode === 'high-contrast-yellow';
 
-  // SVG dimensions
-  const width = 760;
-  const height = 500;
+  // Calculate dynamic bounding box with generous padding so no landmarks or labels are cut off
+  const paddingX = 80;
+  const paddingTop = 70;
+  const paddingBottom = 80;
+
+  const minX = nodes.length > 0 ? Math.min(...nodes.map((n) => n.coordinates.x)) - paddingX : 20;
+  const maxX = nodes.length > 0 ? Math.max(...nodes.map((n) => n.coordinates.x)) + paddingX : 740;
+  const minY = nodes.length > 0 ? Math.min(...nodes.map((n) => n.coordinates.y)) - paddingTop : 110;
+  const maxY = nodes.length > 0 ? Math.max(...nodes.map((n) => n.coordinates.y)) + paddingBottom : 680;
+
+  const viewBoxWidth = Math.max(760, maxX - minX);
+  const viewBoxHeight = Math.max(540, maxY - minY);
 
   // Build a lookup map for node coordinates
   const nodeMap = new Map<string, CampusNode>();
@@ -84,7 +93,7 @@ export const CampusMapCanvas: React.FC<CampusMapCanvasProps> = ({
       </div>
 
       <svg
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`${minX} ${minY} ${viewBoxWidth} ${viewBoxHeight}`}
         style={{ width: '100%', height: 'auto', display: 'block' }}
         role="img"
         aria-label="Campus map showing walkways, ramps, and building locations"
@@ -100,7 +109,7 @@ export const CampusMapCanvas: React.FC<CampusMapCanvasProps> = ({
             />
           </pattern>
         </defs>
-        <rect width={width} height={height} fill="url(#campusGrid)" />
+        <rect x={minX} y={minY} width={viewBoxWidth} height={viewBoxHeight} fill="url(#campusGrid)" />
 
         {/* Pathways / Edges */}
         {edges.map((edge) => {

@@ -72,6 +72,104 @@ def detect_objects(payload: FramePayload):
         confidence_threshold=payload.confidence_threshold or 0.35,
     )
 
+# --- Mobile & Wireless Camera Endpoints ---
+
+class MobileStreamPayload(BaseModel):
+    image: str
+    confidence_threshold: Optional[float] = Field(0.35, ge=0.1, le=0.9)
+    device_name: Optional[str] = "Mobile Phone Camera"
+
+latest_mobile_feed = {
+    "image": None,
+    "timestamp": None,
+    "detections": [],
+    "summary": "Waiting for mobile camera stream...",
+    "processing_ms": 0,
+    "device_name": "Mobile Phone Camera",
+    "primary_hazard": None,
+}
+
+@app.post("/api/camera/stream_frame", tags=["Camera"])
+def post_mobile_stream_frame(payload: MobileStreamPayload):
+    """Receive live video frame from a smartphone camera and run YOLOv8 object detection."""
+    global latest_mobile_feed
+    if not payload.image:
+        raise HTTPException(status_code=400, detail="Image base64 data is required.")
+
+    result = vision_service.detect(
+        base64_image=payload.image,
+        confidence_threshold=payload.confidence_threshold or 0.35,
+    )
+
+    primary_hazard = None
+    for item in result.detections:
+        if item.is_obstacle and item.visual_proximity != "distant":
+            primary_hazard = item.label
+            break
+
+    latest_mobile_feed = {
+        "image": payload.image,
+        "timestamp": datetime.utcnow().isoformat(),
+        "detections": [d.dict() for d in result.detections],
+        "summary": result.summary,
+        "processing_ms": result.processing_time_ms,
+        "device_name": payload.device_name or "Mobile Phone Camera",
+        "primary_hazard": primary_hazard,
+    }
+
+    return {
+        "status": "ok",
+        "detections": latest_mobile_feed["detections"],
+        "summary": result.summary,
+        "processing_ms": result.processing_time_ms,
+        "primary_hazard": primary_hazard,
+    }
+
+@app.get("/api/camera/latest_frame", tags=["Camera"])
+def get_latest_mobile_stream_frame():
+    """Retrieve the latest frame transmitted by the connected mobile phone."""
+    if not latest_mobile_feed["image"]:
+        return {
+            "has_stream": False,
+            "message": "No mobile camera stream active. Open the app on your phone and tap 'Use Phone as Camera'.",
+        }
+    return {
+        "has_stream": True,
+        **latest_mobile_feed,
+    }
+
+class IPCamFetchPayload(BaseModel):
+    stream_url: str
+    confidence_threshold: Optional[float] = Field(0.35, ge=0.1, le=0.9)
+
+@app.post("/api/camera/detect_ipcam", tags=["Camera"])
+def detect_from_ip_camera(payload: IPCamFetchPayload):
+    """Fetch a single JPEG frame from an IP camera / DroidCam Wi-Fi URL and run YOLO detection."""
+    import urllib.request
+    import base64
+    try:
+        req = urllib.request.Request(
+            payload.stream_url,
+            headers={"User-Agent": "PathSight-Assistive/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=3.5) as response:
+            image_bytes = response.read()
+            b64_encoded = f"data:image/jpeg;base64,{base64.b64encode(image_bytes).decode('utf-8')}"
+
+        result = vision_service.detect(
+            base64_image=b64_encoded,
+            confidence_threshold=payload.confidence_threshold or 0.35,
+        )
+        return {
+            "success": True,
+            "image": b64_encoded,
+            "detections": result.detections,
+            "summary": result.summary,
+            "processing_time_ms": result.processing_time_ms,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch frame from camera URL: {str(e)}")
+
 # --- Campus Navigation Endpoints ---
 
 @app.get("/api/campus/nodes", response_model=List[CampusNode], tags=["Campus"])

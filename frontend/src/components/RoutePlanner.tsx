@@ -85,7 +85,7 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
         flexDirection: 'column',
         gap: '16px',
         width: '100%',
-        maxWidth: '780px',
+        maxWidth: '100%',
         margin: '0 auto',
       }}
     >

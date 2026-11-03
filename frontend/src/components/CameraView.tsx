@@ -4,6 +4,10 @@ import {
   Square,
   SwitchCamera,
   Camera,
+  Smartphone,
+  Globe,
+  Copy,
+  ExternalLink,
   AlertOctagon,
   Eye,
   CameraOff,
@@ -20,6 +24,8 @@ import {
 import type { DetectionItem, ContrastMode } from '../types';
 import type { VoiceStatus } from '../hooks/useSpeech';
 
+export type CameraMode = 'local' | 'mobile_wireless' | 'ip_cam';
+
 interface CameraViewProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   cameraStatus: 'idle' | 'requesting' | 'active' | 'denied' | 'error';
@@ -27,6 +33,9 @@ interface CameraViewProps {
   facingMode: 'environment' | 'user';
   videoDevices: MediaDeviceInfo[];
   selectedDeviceId: string | null;
+  cameraMode: CameraMode;
+  remoteImage: string | null;
+  ipCamUrl: string;
   isAssistanceActive: boolean;
   detections: DetectionItem[];
   primaryHazard: string | null;
@@ -40,6 +49,9 @@ interface CameraViewProps {
   onToggleAssistance: () => void;
   onToggleFacingMode: () => void;
   onSelectCamera: (deviceId: string) => void;
+  onSelectCameraMode: (mode: CameraMode) => void;
+  onUpdateIpCamUrl: (url: string) => void;
+  onOpenMobileTransmitter: () => void;
   onRetryBackend: () => void;
   onToggleMute: () => void;
   onTestVoice: () => void;
@@ -52,6 +64,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   facingMode,
   videoDevices,
   selectedDeviceId,
+  cameraMode,
+  remoteImage,
+  ipCamUrl,
   isAssistanceActive,
   detections,
   primaryHazard,
@@ -65,6 +80,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onToggleAssistance,
   onToggleFacingMode,
   onSelectCamera,
+  onSelectCameraMode,
+  onUpdateIpCamUrl,
+  onOpenMobileTransmitter,
   onRetryBackend,
   onToggleMute,
   onTestVoice,
@@ -72,8 +90,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const isHighContrast = contrastMode === 'high-contrast-yellow';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [videoAspect, setVideoAspect] = useState<number>(4 / 3);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
-  // Focus trap / keyboard accessibility reminder
+  // Focus trap / keyboard accessibility
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && e.target === document.body) {
@@ -97,6 +116,26 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const isSpeaking = voiceStatus === 'speaking';
   const isUnavailable = voiceStatus === 'unavailable';
 
+  // Compute mobile transmitter URL based on current host
+  const phoneTransmitterUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.protocol}//${window.location.hostname}:${window.location.port}/?mode=cam`
+      : 'http://localhost:5173/?mode=cam';
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(phoneTransmitterUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      // ignore
+    }
+  };
+
+  const isFeedActive =
+    isAssistanceActive &&
+    (cameraMode === 'local' ? cameraStatus === 'active' : Boolean(remoteImage));
+
   return (
     <section
       role="region"
@@ -106,7 +145,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         flexDirection: 'column',
         gap: '14px',
         width: '100%',
-        maxWidth: '780px',
+        maxWidth: '820px',
         margin: '0 auto',
       }}
     >
@@ -156,7 +195,255 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
       )}
 
-      {/* Primary Action Button & Camera Selector */}
+      {/* Video Source Selection Tabs (Webcam vs Mobile Phone vs IP Cam) */}
+      <div
+        role="tablist"
+        aria-label="Camera Video Source Selection"
+        style={{
+          display: 'flex',
+          backgroundColor: isHighContrast ? '#000000' : '#0b1329',
+          border: isHighContrast ? '2px solid #facc15' : '1px solid #1e293b',
+          borderRadius: '10px',
+          padding: '4px',
+          gap: '4px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          role="tab"
+          aria-selected={cameraMode === 'local'}
+          onClick={() => onSelectCameraMode('local')}
+          style={{
+            flex: '1 1 140px',
+            minHeight: '44px',
+            backgroundColor: cameraMode === 'local'
+              ? (isHighContrast ? '#facc15' : '#0284c7')
+              : 'transparent',
+            color: cameraMode === 'local'
+              ? (isHighContrast ? '#000000' : '#ffffff')
+              : (isHighContrast ? '#facc15' : '#94a3b8'),
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+          }}
+        >
+          <Camera size={16} aria-hidden="true" />
+          <span>Device Webcam / USB</span>
+        </button>
+
+        <button
+          role="tab"
+          aria-selected={cameraMode === 'mobile_wireless'}
+          onClick={() => onSelectCameraMode('mobile_wireless')}
+          style={{
+            flex: '1 1 170px',
+            minHeight: '44px',
+            backgroundColor: cameraMode === 'mobile_wireless'
+              ? (isHighContrast ? '#facc15' : '#0284c7')
+              : 'transparent',
+            color: cameraMode === 'mobile_wireless'
+              ? (isHighContrast ? '#000000' : '#ffffff')
+              : (isHighContrast ? '#facc15' : '#94a3b8'),
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+          }}
+        >
+          <Smartphone size={16} aria-hidden="true" />
+          <span>📱 Mobile Phone (Wi-Fi)</span>
+        </button>
+
+        <button
+          role="tab"
+          aria-selected={cameraMode === 'ip_cam'}
+          onClick={() => onSelectCameraMode('ip_cam')}
+          style={{
+            flex: '1 1 140px',
+            minHeight: '44px',
+            backgroundColor: cameraMode === 'ip_cam'
+              ? (isHighContrast ? '#facc15' : '#0284c7')
+              : 'transparent',
+            color: cameraMode === 'ip_cam'
+              ? (isHighContrast ? '#000000' : '#ffffff')
+              : (isHighContrast ? '#facc15' : '#94a3b8'),
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+          }}
+        >
+          <Globe size={16} aria-hidden="true" />
+          <span>IP Stream URL</span>
+        </button>
+      </div>
+
+      {/* Mode-Specific Configuration Card */}
+      {cameraMode === 'mobile_wireless' && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: '10px',
+            backgroundColor: isHighContrast ? '#000000' : '#0e1a38',
+            border: isHighContrast ? '2px solid #facc15' : '1px solid #1e3a6a',
+            fontSize: '0.85rem',
+            lineHeight: 1.5,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Smartphone size={18} style={{ color: '#38bdf8' }} aria-hidden="true" />
+              <strong>Wireless Mobile Phone Camera Stream:</strong>
+            </div>
+            <span
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                color: remoteImage ? '#10b981' : isAssistanceActive ? '#f59e0b' : '#94a3b8',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              {remoteImage ? (
+                <>
+                  <CheckCircle size={14} />
+                  <span>Phone Connected &amp; Streaming</span>
+                </>
+              ) : isAssistanceActive ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>Listening for Phone Stream...</span>
+                </>
+              ) : (
+                <span>Ready to Connect</span>
+              )}
+            </span>
+          </div>
+
+          <p style={{ margin: '6px 0 8px 0', color: isHighContrast ? '#facc15' : '#cbd5e1' }}>
+            Open this address on your smartphone (connected to the same Wi-Fi) to stream its rear camera to this dashboard:
+          </p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <code
+              style={{
+                padding: '6px 12px',
+                backgroundColor: isHighContrast ? '#111' : '#070f22',
+                border: isHighContrast ? '1px solid #facc15' : '1px solid #2563eb',
+                borderRadius: '6px',
+                color: isHighContrast ? '#facc15' : '#38bdf8',
+                fontSize: '0.825rem',
+                fontWeight: 600,
+                wordBreak: 'break-all',
+              }}
+            >
+              {phoneTransmitterUrl}
+            </code>
+
+            <button
+              onClick={handleCopyLink}
+              style={{
+                backgroundColor: isHighContrast ? '#222' : '#1e293b',
+                color: isHighContrast ? '#facc15' : '#f8fafc',
+                border: isHighContrast ? '1px solid #facc15' : '1px solid #334155',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                minHeight: '34px',
+              }}
+              title="Copy mobile camera link"
+            >
+              <Copy size={14} aria-hidden="true" />
+              <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+            </button>
+
+            <button
+              onClick={onOpenMobileTransmitter}
+              style={{
+                backgroundColor: isHighContrast ? '#222' : '#0284c7',
+                color: '#ffffff',
+                border: isHighContrast ? '1px solid #facc15' : 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                minHeight: '34px',
+              }}
+              title="Simulate mobile phone camera in this browser"
+            >
+              <ExternalLink size={14} aria-hidden="true" />
+              <span>Open Phone Camera Transmitter</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {cameraMode === 'ip_cam' && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: '10px',
+            backgroundColor: isHighContrast ? '#000000' : '#0e1a38',
+            border: isHighContrast ? '2px solid #facc15' : '1px solid #1e3a6a',
+            fontSize: '0.85rem',
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: '6px', color: isHighContrast ? '#facc15' : '#e2e8f0' }}>
+            External Phone IP Camera / DroidCam Stream URL:
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input
+              type="url"
+              value={ipCamUrl}
+              onChange={(e) => onUpdateIpCamUrl(e.target.value)}
+              placeholder="e.g. http://192.168.1.50:8080/shot.jpg or /video"
+              style={{
+                flex: 1,
+                minHeight: '38px',
+                backgroundColor: isHighContrast ? '#111' : '#070f22',
+                color: isHighContrast ? '#facc15' : '#f8fafc',
+                border: isHighContrast ? '1px solid #facc15' : '1px solid #334155',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '0.85rem',
+                outline: 'none',
+              }}
+              aria-label="IP camera stream URL"
+            />
+          </div>
+          <p style={{ margin: '6px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
+            Supported apps: <strong>IP Webcam</strong> (Android), <strong>DroidCam</strong>, or any MJPEG camera URL.
+          </p>
+        </div>
+      )}
+
+      {/* Primary Action Button & Lens Selector */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch', flexWrap: 'wrap' }}>
           <button
@@ -184,8 +471,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
             }}
             aria-label={
               isAssistanceActive
-                ? 'Pause camera detection and voice assistance (or press Spacebar)'
-                : 'Start camera detection and voice assistance (or press Spacebar)'
+                ? 'Pause vision detection and voice assistance (or press Spacebar)'
+                : 'Start vision detection and voice assistance (or press Spacebar)'
             }
           >
             {isAssistanceActive ? (
@@ -201,37 +488,39 @@ export const CameraView: React.FC<CameraViewProps> = ({
             )}
           </button>
 
-          {/* Quick Lens Switcher (Rear Environment vs Front Selfie) */}
-          <button
-            onClick={onToggleFacingMode}
-            style={{
-              flex: '1 1 180px',
-              minHeight: '56px',
-              padding: '0 16px',
-              borderRadius: '10px',
-              border: isHighContrast ? '2px solid #facc15' : '1px solid #334155',
-              backgroundColor: isHighContrast ? '#111' : '#1e293b',
-              color: isHighContrast ? '#facc15' : '#e2e8f0',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-            }}
-            aria-label={`Switch camera lens. Currently using ${facingMode === 'environment' ? 'Rear (World)' : 'Front (Selfie)'} lens`}
-            title="Switch camera lens (Rear/World vs Front/Selfie)"
-          >
-            <SwitchCamera size={20} aria-hidden="true" />
-            <span>
-              {facingMode === 'environment' ? 'Lens: Rear (World)' : 'Lens: Front (Selfie)'}
-            </span>
-          </button>
+          {/* Quick Lens Switcher (Rear vs Front Camera - active in Local mode) */}
+          {cameraMode === 'local' && (
+            <button
+              onClick={onToggleFacingMode}
+              style={{
+                flex: '1 1 180px',
+                minHeight: '56px',
+                padding: '0 16px',
+                borderRadius: '10px',
+                border: isHighContrast ? '2px solid #facc15' : '1px solid #334155',
+                backgroundColor: isHighContrast ? '#111' : '#1e293b',
+                color: isHighContrast ? '#facc15' : '#e2e8f0',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+              }}
+              aria-label={`Switch camera lens. Currently using ${facingMode === 'environment' ? 'Rear (World)' : 'Front (Selfie)'} lens`}
+              title="Switch camera lens (Rear/World vs Front/Selfie)"
+            >
+              <SwitchCamera size={20} aria-hidden="true" />
+              <span>
+                {facingMode === 'environment' ? 'Lens: Rear (World)' : 'Lens: Front (Selfie)'}
+              </span>
+            </button>
+          )}
         </div>
 
-        {/* Multi-Camera Hardware Selector (Displays when multiple video inputs exist) */}
-        {videoDevices.length > 1 && (
+        {/* Multi-Camera Hardware Selector (Displays when multiple video devices exist in local mode) */}
+        {cameraMode === 'local' && videoDevices.length > 1 && (
           <div
             style={{
               display: 'flex',
@@ -285,7 +574,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         )}
       </div>
 
-      {/* Voice Control Bar (Immediate accessible controls right on the main screen) */}
+      {/* Voice Control Bar */}
       <div
         role="region"
         aria-label="Voice Assistance Controls"
@@ -335,7 +624,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Mute Toggle Button */}
           <button
             onClick={onToggleMute}
             disabled={isUnavailable}
@@ -363,7 +651,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
             <span>{isMuted ? 'Unmute Speech' : 'Mute Speech (M)'}</span>
           </button>
 
-          {/* Test Voice Button (Dedicated test phrase) */}
           <button
             onClick={onTestVoice}
             disabled={isUnavailable}
@@ -390,7 +677,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
       </div>
 
-      {/* Camera Viewport Container */}
+      {/* Main Camera Viewport Container */}
       <div
         ref={containerRef}
         style={{
@@ -412,7 +699,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
           justifyContent: 'center',
         }}
       >
-        {/* Real Live Video Feed */}
+        {/* Source 1: Local Live Video Feed */}
         <video
           ref={videoRef as React.LegacyRef<HTMLVideoElement>}
           playsInline
@@ -422,13 +709,53 @@ export const CameraView: React.FC<CameraViewProps> = ({
             width: '100%',
             height: '100%',
             objectFit: 'contain',
-            display: cameraStatus === 'active' ? 'block' : 'none',
+            display: cameraMode === 'local' && cameraStatus === 'active' ? 'block' : 'none',
           }}
           aria-label="Live camera feed for object detection"
         />
 
+        {/* Source 2 & 3: Remote Mobile Phone or IP Camera Live Frame */}
+        {cameraMode !== 'local' && remoteImage && (
+          <img
+            src={remoteImage}
+            alt="Live feed from remote camera"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              display: 'block',
+            }}
+          />
+        )}
+
+        {/* Remote Camera Waiting Standby */}
+        {cameraMode === 'mobile_wireless' && !remoteImage && (
+          <div style={{ textAlign: 'center', padding: '24px', maxWidth: '400px' }}>
+            <Smartphone size={44} style={{ color: '#38bdf8', margin: '0 auto 12px auto' }} aria-hidden="true" />
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: isHighContrast ? '#fff' : '#f8fafc' }}>
+              Wireless Phone Camera Standby
+            </h3>
+            <p style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+              Tap <strong>Start Vision &amp; Voice</strong> above, then open the transmitter link on your smartphone to stream live video.
+            </p>
+          </div>
+        )}
+
+        {/* IP Camera Waiting Standby */}
+        {cameraMode === 'ip_cam' && !remoteImage && (
+          <div style={{ textAlign: 'center', padding: '24px', maxWidth: '400px' }}>
+            <Globe size={44} style={{ color: '#38bdf8', margin: '0 auto 12px auto' }} aria-hidden="true" />
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: isHighContrast ? '#fff' : '#f8fafc' }}>
+              IP Camera Stream Standby
+            </h3>
+            <p style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+              Enter your IP camera stream URL and tap <strong>Start Vision &amp; Voice</strong> to stream.
+            </p>
+          </div>
+        )}
+
         {/* Inference Status Watermark & Latency */}
-        {cameraStatus === 'active' && (
+        {isFeedActive && (
           <div
             style={{
               position: 'absolute',
@@ -455,7 +782,14 @@ export const CameraView: React.FC<CameraViewProps> = ({
             ) : modelReady ? (
               <>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }} />
-                <span>YOLOv8 Ready ({lastProcessingMs > 0 ? `${lastProcessingMs}ms` : 'online'})</span>
+                <span>
+                  {cameraMode === 'mobile_wireless'
+                    ? '📱 Phone YOLOv8'
+                    : cameraMode === 'ip_cam'
+                    ? '🌐 IP Stream'
+                    : 'YOLOv8'}{' '}
+                  ({lastProcessingMs > 0 ? `${lastProcessingMs}ms` : 'online'})
+                </span>
               </>
             ) : (
               <>
@@ -467,7 +801,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         )}
 
         {/* Spatial Zone Guides (3 Column Accessibility Division) */}
-        {cameraStatus === 'active' && (
+        {isFeedActive && (
           <div
             style={{
               position: 'absolute',
@@ -494,8 +828,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </div>
         )}
 
-        {/* Real Bounding Boxes Overlay (Accurately scaled) */}
-        {cameraStatus === 'active' &&
+        {/* Real Bounding Boxes Overlay */}
+        {isFeedActive &&
           detections.map((item, idx) => {
             const [ymin, xmin, ymax, xmax] = item.box;
             const top = `${ymin * 100}%`;
@@ -557,61 +891,46 @@ export const CameraView: React.FC<CameraViewProps> = ({
             );
           })}
 
-        {/* Active Scene Clear Indicator (When no objects detected) */}
-        {cameraStatus === 'active' && detections.length === 0 && (
+        {/* Active Scene Clear Indicator */}
+        {isFeedActive && detections.length === 0 && (
           <div
             style={{
               position: 'absolute',
               bottom: '16px',
-              backgroundColor: 'rgba(6, 78, 59, 0.85)',
-              border: '1px solid #10b981',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              color: '#d1fae5',
-              fontSize: '0.8rem',
+              backgroundColor: 'rgba(16, 185, 129, 0.85)',
+              color: '#ffffff',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              fontSize: '0.78rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
               zIndex: 6,
             }}
           >
-            <CheckCircle size={14} style={{ color: '#34d399' }} aria-hidden="true" />
-            <span>Path clear ahead · Scanning active</span>
+            <CheckCircle size={15} aria-hidden="true" />
+            <span>Path clear — no immediate obstacles</span>
           </div>
         )}
 
-        {/* State 1: Camera Idle */}
-        {cameraStatus === 'idle' && (
-          <div
-            style={{
-              padding: '24px',
-              textAlign: 'center',
-              color: isHighContrast ? '#facc15' : '#94a3b8',
-              maxWidth: '380px',
-            }}
-          >
-            <Eye size={48} strokeWidth={1.5} style={{ margin: '0 auto 12px auto', color: isHighContrast ? '#facc15' : '#38bdf8' }} aria-hidden="true" />
+        {/* Local Webcam Standby State */}
+        {cameraMode === 'local' && cameraStatus === 'idle' && (
+          <div style={{ textAlign: 'center', padding: '24px', maxWidth: '380px', color: isHighContrast ? '#facc15' : '#94a3b8' }}>
+            <Camera size={44} style={{ margin: '0 auto 12px auto', color: isHighContrast ? '#facc15' : '#38bdf8' }} aria-hidden="true" />
             <h3 style={{ margin: '0 0 6px 0', fontSize: '1.2rem', color: isHighContrast ? '#fff' : '#f8fafc' }}>
-              Camera is in Standby
+              Webcam is in Standby
             </h3>
             <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.5 }}>
-              Tap <strong>Start Vision &amp; Voice</strong> above or press <strong>Spacebar</strong> to activate the camera and real-time voice guidance.
+              Tap <strong>Start Vision &amp; Voice</strong> above or press <strong>Spacebar</strong> to activate the camera.
             </p>
           </div>
         )}
 
-        {/* State 2: Requesting Permission */}
-        {cameraStatus === 'requesting' && (
-          <div
-            style={{
-              padding: '24px',
-              textAlign: 'center',
-              color: isHighContrast ? '#facc15' : '#94a3b8',
-            }}
-            role="status"
-            aria-live="polite"
-          >
+        {/* Local Webcam Requesting Permission State */}
+        {cameraMode === 'local' && cameraStatus === 'requesting' && (
+          <div style={{ padding: '24px', textAlign: 'center', color: isHighContrast ? '#facc15' : '#94a3b8' }} role="status">
             <div style={{ fontSize: '1rem', fontWeight: 600, color: '#fff', marginBottom: '8px' }}>
               Requesting Camera Access...
             </div>
@@ -621,23 +940,15 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </div>
         )}
 
-        {/* State 3: Permission Denied */}
-        {cameraStatus === 'denied' && (
-          <div
-            style={{
-              padding: '24px',
-              textAlign: 'center',
-              color: '#f87171',
-              maxWidth: '400px',
-            }}
-            role="alert"
-          >
+        {/* Local Webcam Permission Denied State */}
+        {cameraMode === 'local' && cameraStatus === 'denied' && (
+          <div style={{ padding: '24px', textAlign: 'center', color: '#f87171', maxWidth: '400px' }} role="alert">
             <CameraOff size={44} style={{ margin: '0 auto 12px auto' }} aria-hidden="true" />
             <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: '#fca5a5' }}>
               Camera Permission Denied
             </h3>
             <p style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#e2e8f0', lineHeight: 1.4 }}>
-              PathSight requires camera access to detect obstacles. Please click the camera/lock icon in your browser address bar and select &quot;Allow&quot;.
+              PathSight requires camera access. Click the camera/lock icon in your address bar and select &quot;Allow&quot;.
             </p>
             <button
               onClick={onToggleAssistance}
@@ -657,23 +968,13 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </div>
         )}
 
-        {/* State 4: Camera Hardware Error */}
-        {cameraStatus === 'error' && (
-          <div
-            style={{
-              padding: '24px',
-              textAlign: 'center',
-              color: '#f87171',
-              maxWidth: '380px',
-            }}
-            role="alert"
-          >
+        {/* Local Webcam Error State */}
+        {cameraMode === 'local' && cameraStatus === 'error' && (
+          <div style={{ padding: '24px', textAlign: 'center', color: '#f87171', maxWidth: '380px' }} role="alert">
             <AlertOctagon size={44} style={{ margin: '0 auto 12px auto' }} aria-hidden="true" />
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem' }}>
-              Camera Hardware Unavailable
-            </h3>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem' }}>Camera Hardware Unavailable</h3>
             <p style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#e2e8f0' }}>
-              {errorMessage || 'Unable to open camera stream. Ensure no other application (Zoom, Teams) is using the webcam.'}
+              {errorMessage || 'Unable to open camera stream. Ensure no other application is using the webcam.'}
             </p>
             <button
               onClick={onToggleAssistance}
